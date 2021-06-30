@@ -1,3 +1,7 @@
+-- Suggestion: Add the following code into es_extended/imports.lua rather than importing multiple files
+-- If you add it under all the existing code it will work on both the server and client (assuming you're calling the imports file)
+-- If you do use @es_extended/imports.lua just remember you don't need to define ESX in your resources anymore
+
 -----------------------------------------------------------------------------------------------
 -- Similar to the threads but slimmed down; to be used as an import rather than running locally
 -----------------------------------------------------------------------------------------------
