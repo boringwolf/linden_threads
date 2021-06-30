@@ -1,3 +1,6 @@
+-------------------------------------------------------------------------------------------------------
+-- Handle all DisableControlActions here; setup different triggers to add or remove keys from the table
+-------------------------------------------------------------------------------------------------------
 local Disable = {}
 Citizen.CreateThread(function()
 	while true do
@@ -13,9 +16,7 @@ Citizen.CreateThread(function()
 	end
 end)
 
--- Setup different sets of keys to disable depending on active variables
 -- Either trigger ESX.SetPlayerData('key', state) or add an event to set keys to disable like below
--- todo: make a general disable list
 local Keys = {
 	always = {199}
 	handsup = {23, 24, 25, 45, 166, 167, 168, 170, 257, 263, 288},
@@ -38,7 +39,26 @@ OnPlayerData = function(key, val)
 	end
 end
 
+--------------------------------------------------------------------------------------------------
+-- Create threads to handle tasks and when the result changes trigger an event for other resources
+--------------------------------------------------------------------------------------------------
 local Threads = {}
+
+-- When the thread result changes, call this function to gather more information before sending the TriggerEvent
+local ThreadEvent = function(name, result)
+	Citizen.CreateThread(function()
+		local data = {}
+		if name == 'vehicle' then
+			data.vehicle = result
+			data.class = GetVehicleClass(result)
+			local seat = GetPedInVehicleSeat(result, -1)
+			if seat == ESX.PlayerData.ped then data.driver = true else data.driver = false end
+		end
+		TriggerEvent('thread:'..name, data)
+	end)
+end
+
+-- Define a thread class, allowing for the creation of multiple objects using the same structure
 local CreateThread = function(name, interval, action)
 	local self = {}
 	self.name = name	self.interval = interval	self.action = action	self.current = false
@@ -52,7 +72,7 @@ local CreateThread = function(name, interval, action)
 					TriggerEvent('thread:'..self.name, false)
 					self.interval = self.interval
 				else
-					TriggerThread(self.name, result)
+					ThreadEvent(self.name, result)
 					self.interval = self.interval
 				end
 			end
@@ -64,6 +84,7 @@ local CreateThread = function(name, interval, action)
 	return self
 end
 
+-- Allow for creation and deletion of a thread object
 local ToggleThread = function(name, interval, action)
 	if Threads[name] then
 		if interval then Threads[name].interval = interval else Threads[name].name = nil end
@@ -72,27 +93,12 @@ local ToggleThread = function(name, interval, action)
 	end
 end
 
-TriggerThread = function(name, result)
-	Citizen.CreateThread(function()
-		local data = {}
-		if name == 'vehicle' then
-			data.vehicle = result
-			data.class = GetVehicleClass(result)
-			local seat = GetPedInVehicleSeat(result, -1)
-			if seat == ESX.PlayerData.ped then data.driver = true else data.driver = false end
-		end
-		TriggerEvent('thread:'..name, data)
-	end)
-end
-
+-- Create a thread to check if the player is inside a vehicle
 ToggleThread('vehicle', 600, function()
 	return GetVehiclePedIsIn(ESX.PlayerData.ped, false)
 end)
 
-
-
--- Then you can throw in an event wherever you want when entering/exiting a vehicle
-
+-- Put this in any resource
 AddEventHandler('thread:vehicle', function(data)
 	if data and vehicle ~= data.vehicle then
 		vehicle = data.vehicle
